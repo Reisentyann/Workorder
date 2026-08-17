@@ -1,0 +1,8 @@
+# 运行时数据（首次启动自动生成）
+backend/data/
+
+# 编译产物
+backend/workbench.exe
+
+# 开发过程中移出的测试产物
+旧内容/

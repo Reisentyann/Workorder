@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 工单处理工作台</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">AI 工单处理工作台</div>
+    <div class="shortcut-hint">快捷键：N 新建 · A 分析 · Esc 打断 · 1-9 快速操作</div>
+    <div class="top-actions">
+      <button id="btn-history" class="btn btn-ghost">历史工单</button>
+      <button id="btn-demo" class="btn btn-ghost">▶ 演示</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- 左侧：工单列表 -->
+    <section class="panel list-panel">
+      <div class="panel-header">
+        <h2>工单列表</h2>
+        <div class="panel-actions">
+          <button id="btn-refresh" class="btn btn-ghost">刷新</button>
+          <button id="btn-new" class="btn btn-primary">＋ 新建</button>
+        </div>
+      </div>
+      <ul id="ticket-list" class="ticket-list"></ul>
+    </section>
+
+    <!-- 中间：推送消息 -->
+    <section class="panel message-panel">
+      <div class="panel-header">
+        <h2>推送消息</h2>
+      </div>
+      <ul id="message-list" class="message-list"></ul>
+    </section>
+
+    <!-- 右侧：详情 + 分析 -->
+    <section class="panel detail-panel">
+      <div id="detail-empty" class="detail-empty">← 选择或新建一个工单</div>
+
+      <div id="detail" class="detail" hidden>
+        <div class="detail-header">
+          <h2 id="d-title">-</h2>
+          <div class="detail-meta">
+            <span id="d-id" class="meta-id"></span>
+            <span id="d-status" class="badge"></span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>工单内容</label>
+          <div id="d-content" class="content-box"></div>
+        </div>
+
+        <!-- 快速操作按钮栏 -->
+        <div class="quickbar">
+          <div class="quickbar-title">快速操作 <span class="muted">（点击或按快捷键）</span></div>
+          <div id="quick-actions" class="quick-actions"></div>
+          <div class="quickbar-add">
+            <input id="qa-name" type="text" placeholder="按钮名，如：重做-分类退款" />
+            <input id="qa-instruction" type="text" placeholder="指令，如：重新分析，把分类改成退款申请" />
+            <input id="qa-shortcut" type="text" placeholder="快捷键 1-9" maxlength="1" class="shortcut-input" />
+            <button id="qa-add" class="btn btn-ghost">＋ 添加按钮</button>
+          </div>
+        </div>
+
+        <!-- AI 分析 -->
+        <div class="analyze-bar">
+          <button id="btn-analyze" class="btn btn-primary">⚡ AI 分析</button>
+          <button id="btn-cancel" class="btn btn-danger" hidden>⏹ 打断分析</button>
+          <span id="analyze-status" class="muted"></span>
+        </div>
+
+        <!-- 分析结果（最新一条） -->
+        <div id="analysis-box" class="analysis-box" hidden></div>
+
+        <!-- 人工确认 / 修改 -->
+        <div id="review-box" class="review-box" hidden>
+          <h3>人工确认 / 修改 AI 建议</h3>
+          <div class="grid-2">
+            <div class="field">
+              <label>工单分类</label>
+              <input id="r-category" type="text" />
+            </div>
+            <div class="field">
+              <label>优先级</label>
+              <select id="r-priority">
+                <option value="低">低</option>
+                <option value="中">中</option>
+                <option value="高">高</option>
+                <option value="紧急">紧急</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>摘要</label>
+            <textarea id="r-summary" rows="2"></textarea>
+          </div>
+          <div class="field">
+            <label>建议处理角色</label>
+            <input id="r-assignee" type="text" />
+          </div>
+          <div class="review-actions">
+            <button id="btn-confirm" class="btn btn-success">✓ 确认</button>
+            <button id="btn-discard" class="btn btn-ghost">放弃</button>
+          </div>
+        </div>
+
+        <!-- 状态流转 -->
+        <div class="status-bar">
+          <label>更新工单状态：</label>
+          <select id="s-status">
+            <option value="pending">待处理</option>
+            <option value="needs_review">待确认</option>
+            <option value="resolved">已处理</option>
+            <option value="needs_info">需补充信息</option>
+          </select>
+          <button id="btn-status" class="btn btn-ghost">更新</button>
+          <button id="btn-delete" class="btn btn-danger-outline">删除（懒标记）</button>
+        </div>
+
+        <!-- 分析历史 -->
+        <details class="history">
+          <summary>分析历史</summary>
+          <div id="analysis-history" class="history-body"></div>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <!-- 新建工单弹窗 -->
+  <dialog id="new-dialog">
+    <form id="new-form">
+      <div class="dialog-head">
+        <h3>新建工单</h3>
+        <button type="button" class="dialog-close" id="new-close" aria-label="关闭">✕</button>
+      </div>
+      <div class="field">
+        <label>标题</label>
+        <input id="n-title" type="text" required />
+      </div>
+      <div class="field">
+        <label>内容</label>
+        <textarea id="n-content" rows="5" required></textarea>
+      </div>
+      <div class="review-actions">
+        <button type="button" class="btn btn-ghost" id="new-cancel">取消</button>
+        <button type="submit" class="btn btn-primary">创建</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 演示面板弹窗 -->
+  <dialog id="demo-dialog">
+    <div class="dialog-head">
+      <h3>引导式演示</h3>
+      <button type="button" class="dialog-close" id="demo-close" aria-label="关闭">✕</button>
+    </div>
+    <p class="muted" style="margin-top:0">选一个场景，系统会逐步引导你操作：告诉你点哪里、输入什么。</p>
+    <div id="demo-scenes" class="quick-actions"></div>
+    <button id="demo-cancel-guide" class="btn btn-ghost" style="margin-top:12px;width:100%">退出引导</button>
+  </dialog>
+
+  <!-- 历史工单弹窗 -->
+  <dialog id="history-dialog">
+    <div class="dialog-head">
+      <h3>历史工单（含已删除）</h3>
+      <button type="button" class="dialog-close" id="history-close" aria-label="关闭">✕</button>
+    </div>
+    <div class="history-layout">
+      <ul id="history-list" class="ticket-list"></ul>
+      <div class="history-detail">
+        <div id="history-audit" class="history-body"></div>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
