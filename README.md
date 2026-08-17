@@ -14,12 +14,13 @@
 backend/
   cmd/workbench/main.go        # 启动入口
   internal/
-    model/                     # 数据模型 + 状态枚举
-    store/                     # JSON 存储（原子写/锁/软删除/队列/数据集/审计）
+    model/                     # 数据模型 + 状态枚举 + UUID
+    store/                     # JSON 存储（原子写/锁/软删除/队列/数据集/审计/推送消息）
     analyzer/                  # AI 分析（LLMClient 接口 + MockLLM + 策略模式 + 工厂）
-    verifier/                  # 结论验证（证据一致性/历史案例/低置信度接管）
-    engine/                    # AI 处理机（单 worker 状态机 + 打断 + 超时）
-    demo/                      # 演示场景编排
+    verifier/                  # 结论验证（证据一致性/历史案例/拒答/三档分级）
+    engine/                    # AI 处理机（单 worker 状态机 + 打断 + 超时 + 熔断 + 启动恢复）
+    sanitize/                  # 输入脱敏
+    demo/                      # 脚本化演示编排（备用）
     api/                       # /api/v1 接口层
   data/                        # 运行时生成的 JSON 数据（data.json + audit.json）
 frontend/
@@ -90,7 +91,7 @@ go test ./...
 ### 4. 关键机制
 
 - **队列**：工单 FIFO，队首给人工审查；**让 LLM 重做的工单插队到队首**（`PushFront`）。
-- **收件箱（推送模拟）**：预置多条用户反馈消息，模拟服务器推送；点「处理」即用消息内容建工单，进入分析流程。
+- **推送消息（服务器推送模拟）**：右侧消息面板预置多条用户反馈，模拟服务器推送；**点击消息直接针对该反馈新建工单**，进入分析流程。
 - **AI 处理机状态机**：`QUEUED → RUNNING → SUCCEEDED/CANCELED/TIMED_OUT/FAILED`，单 worker 串行、可打断、超时兜底、状态持久化。
 - **快速操作**：预设按钮 + 快捷键（1-9），一键触发预设指令；支持动态新增按钮。
 - **强行打断**：Esc / 按钮中断分析，取消请求幂等。
@@ -120,8 +121,8 @@ go test ./...
 | DELETE | `/api/v1/actions/{id}` | 删除动作 |
 | POST | `/api/v1/tickets/{id}/actions/{aid}` | 执行预设动作 |
 | GET | `/api/v1/audit` | 审计日志（`?ticket_id=` 过滤） |
-| GET | `/api/v1/inbox` | 推送消息列表（收件箱） |
-| POST | `/api/v1/inbox/{id}/handle` | 处理推送消息（创建工单） |
+| GET | `/api/v1/inbox` | 推送消息列表（服务器推送模拟） |
+| POST | `/api/v1/inbox/{id}/handle` | 处理推送消息（点击消息 → 创建工单） |
 | POST | `/api/v1/mock/preset` | 设置演示场景桩（仅 `-demo`） |
 | POST | `/api/v1/mock/reset` | 重置场景桩（仅 `-demo`） |
 | POST | `/api/v1/demo/run` | 运行演示场景（仅 `-demo`） |
